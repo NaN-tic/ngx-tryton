@@ -35,10 +35,6 @@ export class SessionService {
         this.locker.set('sessionId', sessionId || null);
         this.loadAllFromStorage();
     }
-    get_auth() {
-        this.loadAllFromStorage();
-        return btoa(this.login + ':' + this.userId + ':' + this.sessionId);
-    }
 
     clearSession() {
         this.userId = null;
@@ -65,6 +61,8 @@ export class SessionService {
         const new_context = Object.assign({}, this.context || {}, context || {})
         // Concat list in a new immutable list
         const new_params = [
+            this.userId,
+            this.sessionId,
             ...params || [],
             new_context
         ];
@@ -83,13 +81,13 @@ export class SessionService {
             this.trytonService.setServerUrl('https://' + this.trytonService.serverUrl);
             loginObservable = this._tryLogin(database, username, password)
             .retryWhen(errors => {
-                     return errors.do(function(e) {
+                      return errors.do(function(e) {
                         let serverUrl = this.trytonService.serverUrl;
                         if (serverUrl.startsWith('https')) {
                             this.trytonService.setServerUrl(serverUrl.replace(/^https/i, 'http'));
                         } else {
                             throw e;
-                        }
+                    }
                     });
                 });
         }
@@ -109,7 +107,7 @@ export class SessionService {
         // call login on tryton server and if the login is succesful set the
         // userId and session
         return this.trytonService.rpc(
-                database, 'common.db.login', [username, password])
+                database, 'common.login', [username, password])
             .map(response => {
                 if (response && response instanceof Array && response.length == 2) {
                     return {
@@ -117,7 +115,7 @@ export class SessionService {
                         'sessionId': String(response[1]),
                     }
                 } else {
-                    console.log('Returned data by common.db.login:', response);
+                    console.log('Returned data by common.login:', response);
                     return Observable.throw(
                         'Unexpected returned data for common.login method');
                 }
@@ -128,7 +126,7 @@ export class SessionService {
     }
 
     doLogout() {
-        let observable = this.rpc('common.db.logout', null, null);
+        let observable = this.trytonService.rpc('common.db.logout', null, null);
         this.clearSession();
         return observable;
     }
