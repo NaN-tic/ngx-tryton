@@ -2,18 +2,15 @@ import {Injectable, Inject} from '@angular/core';
 import {Http} from '@angular/http';
 import { DOCUMENT } from '@angular/platform-browser'
 import {Observable} from 'rxjs/Observable';
-import {Locker} from 'angular-safeguard'
 import 'rxjs/Rx';
+
 
 @Injectable()
 export class TrytonService {
   serverUrl: string;
 
-  constructor(private http: Http, private locker: Locker,
-    @Inject(DOCUMENT) private document: any) {
-    // When use it you can choose where to save data (local, session...)
-    // see https://github.com/MikaAK/angular2-locker
-    this.serverUrl = locker.get('serverUrl');
+  constructor(private http: Http, @Inject(DOCUMENT) private document: any,) {
+    this.serverUrl = sessionStorage.serverUrl;
     if (!this.serverUrl) {
       this.setServerUrl(this.document.location.href);
     }
@@ -23,8 +20,9 @@ export class TrytonService {
 
   setServerUrl(url) {
     this.serverUrl = url + (url.slice(-1) === '/' ? '' : '/');
-    this.locker.set('serverUrl', this.serverUrl);
+    sessionStorage.serverUrl = this.serverUrl;
   }
+
 
   rpc(database: string, method: string, params: Array<any>): Observable<any> {
     // Original tryton service rpc()
@@ -38,7 +36,6 @@ export class TrytonService {
       }))
       .map(res => {
         let new_res = res.json();
-        console.log("new_res:", new_res);
         if (!new_res) {
             return Observable.throw('Empty response');
         } else if (new_res['result']) {
@@ -46,13 +43,14 @@ export class TrytonService {
         } else if (new_res['error']) {
             return this._handleTrytonError(new_res['error']);
         }
-        return new_res;
+        return new_res
       })
       .catch(this._handleError);
   }
 
+
   private _handleError(error) {
-    console.error(error);
+    // console.error(error);
     return Observable.throw(error || 'Server error');
   }
 

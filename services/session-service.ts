@@ -1,6 +1,5 @@
 import {Injectable} from '@angular/core';
 import {Observable} from 'rxjs/Observable';
-import {Locker} from 'angular-safeguard';
 import 'rxjs/Rx';
 
 import {TrytonService} from './tryton-service';
@@ -10,55 +9,47 @@ export class SessionService {
   database: string;
   login: string;
   userId: number;
-  sessionId: number;
+  sessionId: string;
+  password: string;
   context: {};
 
-  constructor(private trytonService: TrytonService, private locker: Locker) {
-    // When use it you can choose where to save data (local, session...)
-    // see https://github.com/MikaAK/angular2-locker
-    this.loadAllFromStorage();
+  constructor(private trytonService: TrytonService) {
+    (this.isLoggedIn())? this.loadAllFromStorage() : false
   }
 
   loadAllFromStorage() {
-    this.database = this.locker.get('database');
-    this.login = this.locker.get('login');
-    this.userId = this.locker.get('userId');
-    this.sessionId = this.locker.get('sessionId');
-    this.context = this.locker.get('context');
+    this.database = sessionStorage.getItem('database');
+    this.login = sessionStorage.getItem('login');
+    this.userId = Number(sessionStorage.getItem('userId'));
+    this.sessionId = sessionStorage.getItem('sessionId');
+    this.context = sessionStorage.getItem('context');
   }
 
-  setSession(database: string, login: string, userId: number, sessionId: number) {
+  setSession(database: string, login: string, userId: number, sessionId: string) {
     // TODO: save it in shareable way to be used
-    this.locker.set('database', database || null);
-    this.locker.set('login', login || null);
-    this.locker.set('userId', Number(userId) || null);
-    this.locker.set('sessionId', sessionId || null);
+    sessionStorage.database = database || null;
+    sessionStorage.login = login || null;
+    sessionStorage.userId = userId || null;
+    sessionStorage.sessionId = sessionId || null;
     this.loadAllFromStorage();
   }
 
   clearSession() {
-    this.userId = null;
-    this.sessionId = null;
-    this.context = null;
-    this.locker.remove('userId');
-    this.locker.remove('sessionId');
-    this.locker.remove('context');
+    sessionStorage.clear();
   }
 
   setDatabase(database: string) {
-    this.locker.set('database', database || null);
-    this.database = this.locker.get('database');
+    sessionStorage.database = database || null;
+    this.database = sessionStorage.database;
   }
 
   setDefaultContext(context: {}) {
-    this.locker.set('context', context);
+    sessionStorage.context = context;
     this.loadAllFromStorage();
   }
 
   rpc(method: string, params: Array<any>, context: {} = null): Observable<any> {
-    // original scope rpc()
-    // copy object in a new imuptable object
-    const new_context = Object.assign({}, this.context || {}, context || {})
+    const new_context = Object.assign({}, this.context || {}, context || {});
     // Concat list in a new immutable list
     const new_params = [
       this.userId,
@@ -95,34 +86,30 @@ export class SessionService {
     return loginObservable.do(result => {
       // Get the user preferences if user has asked for it.
       if (getPreferences) {
-      this.rpc('model.res.user.get_preferences', [true], null)
+        this.rpc('model.res.user.get_preferences', [true], null)
           .subscribe(preferences => {
-              this.setDefaultContext(preferences);
+            this.setDefaultContext(preferences);
           });
       }
     });
   }
 
   private _tryLogin(database: string, username: string, password: string) {
-    // call login on tryton server and if the login is succesful set the
-    // userId and session
-    return this.trytonService.rpc(
-        database, 'common.login', [username, password])
-      .map(response => {
-        if (response && response instanceof Array && response.length == 2) {
-          return {
-              'userId': String(response[0]),
-              'sessionId': String(response[1]),
-          }
-        } else {
-          console.log('Returned data by common.login:', response);
-          return Observable.throw(
-              'Unexpected returned data for common.login method');
-          }
-      })
-      .do(result => {
-          this.setSession(database, username, result['userId'], result['sessionId']);
-      });
+    return this.trytonService.rpc(database, 'common.login', [username, password])
+        .map(response => {
+            if (response && response instanceof Array && response.length == 2) {
+                return {
+                    'userId': String(response[0]),
+                    'sessionId': String(response[1]),
+                }
+            } else {
+                return Observable.throw(
+                    'Unexpected returned data for common.login method');
+            }
+        })
+        .do(result => {
+            this.setSession(database, username, result['userId'], result['sessionId']);
+        });
   }
 
   doLogout() {
@@ -133,5 +120,9 @@ export class SessionService {
 
   isLoggedIn() {
     return !!this.sessionId;
+  }
+
+  isLoggedInPermissions() {
+    return this.userId;
   }
 }
