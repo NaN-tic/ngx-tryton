@@ -27,10 +27,10 @@ export class SessionService {
 
   setSession(database: string, login: string, userId: number, sessionId: string) {
     // TODO: save it in shareable way to be used
-    sessionStorage.database = database || null;
-    sessionStorage.login = login || null;
-    sessionStorage.userId = userId || null;
-    sessionStorage.sessionId = sessionId || null;
+    sessionStorage.setItem('database', database || null);
+    sessionStorage.setItem('login', login || null);
+    sessionStorage.setItem('userId', userId.toString() || null);
+    sessionStorage.setItem('sessionId', sessionId || null);
     this.loadAllFromStorage();
   }
 
@@ -39,12 +39,12 @@ export class SessionService {
   }
 
   setDatabase(database: string) {
-    sessionStorage.database = database || null;
-    this.database = sessionStorage.database;
+    sessionStorage.setItem('database', database || null);
+    this.database = database;
   }
 
   setDefaultContext(context: {}) {
-    sessionStorage.context = context;
+    sessionStorage.setItem('context', context.toString());
     this.loadAllFromStorage();
   }
 

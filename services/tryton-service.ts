@@ -10,7 +10,7 @@ export class TrytonService {
   serverUrl: string;
 
   constructor(private http: Http, @Inject(DOCUMENT) private document: any,) {
-    this.serverUrl = sessionStorage.serverUrl;
+    this.serverUrl = sessionStorage.getItem('serverUrl');
     if (!this.serverUrl) {
       this.setServerUrl(this.document.location.href);
     }
@@ -20,9 +20,8 @@ export class TrytonService {
 
   setServerUrl(url) {
     this.serverUrl = url + (url.slice(-1) === '/' ? '' : '/');
-    sessionStorage.serverUrl = this.serverUrl;
+    sessionStorage.setItem('serverUrl', this.serverUrl);
   }
-
 
   rpc(database: string, method: string, params: Array<any>): Observable<any> {
     // Original tryton service rpc()
