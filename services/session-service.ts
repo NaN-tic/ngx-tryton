@@ -108,8 +108,9 @@ export class SessionService {
   private _tryLogin(database: string, username: string, password: string) {
     // call login on tryton server and if the login is succesful set the
     // userId and session
+    var parameters = {'password': password};
     return this.trytonService.rpc(
-          database, 'common.db.login', [username, password])
+          database, 'common.db.login', [username, parameters])
       .map(response => {
         if (response && response instanceof Array && response.length == 2) {
           return {
