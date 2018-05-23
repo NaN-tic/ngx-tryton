@@ -1,6 +1,5 @@
 import {Injectable} from '@angular/core';
 import {Observable} from 'rxjs/Observable';
-import {Locker} from 'angular-safeguard';
 import 'rxjs/Rx';
 
 import {TrytonService} from './tryton-service';
@@ -10,52 +9,42 @@ export class SessionService {
   database: string;
   login: string;
   userId: number;
-  sessionId: number;
+  sessionId: string;
+  password: string;
   context: {};
 
-  constructor(private trytonService: TrytonService, private locker: Locker) {
-    // When use it you can choose where to save data (local, session...)
-    // see https://github.com/MikaAK/angular2-locker
-    this.loadAllFromStorage();
+  constructor(private trytonService: TrytonService) {
+    (this.isLoggedIn())? this.loadAllFromStorage() : false
   }
 
   loadAllFromStorage() {
-    this.database = this.locker.get('database');
-    this.login = this.locker.get('login');
-    this.userId = this.locker.get('userId');
-    this.sessionId = this.locker.get('sessionId');
-    this.context = this.locker.get('context');
+    this.database = sessionStorage.getItem('database');
+    this.login = sessionStorage.getItem('login');
+    this.userId = Number(sessionStorage.getItem('userId'));
+    this.sessionId = sessionStorage.getItem('sessionId');
+    this.context = sessionStorage.getItem('context');
   }
 
-  setSession(database: string, login: string, userId: number, sessionId: number) {
+  setSession(database: string, login: string, userId: number, sessionId: string) {
     // TODO: save it in shareable way to be used
-    this.locker.set('database', database || null);
-    this.locker.set('login', login || null);
-    this.locker.set('userId', Number(userId) || null);
-    this.locker.set('sessionId', sessionId || null);
+    sessionStorage.setItem('database', database || null);
+    sessionStorage.setItem('login', login || null);
+    sessionStorage.setItem('userId', userId.toString() || null);
+    sessionStorage.setItem('sessionId', sessionId || null);
     this.loadAllFromStorage();
-  }
-  get_auth() {
-    this.loadAllFromStorage();
-    return btoa(this.login + ':' + this.userId + ':' + this.sessionId);
   }
 
   clearSession() {
-    this.userId = null;
-    this.sessionId = null;
-    this.context = null;
-    this.locker.remove('userId');
-    this.locker.remove('sessionId');
-    this.locker.remove('context');
+    sessionStorage.clear();
   }
 
   setDatabase(database: string) {
-    this.locker.set('database', database || null);
-    this.database = this.locker.get('database');
+    sessionStorage.setItem('database', database || null);
+    this.database = database;
   }
 
   setDefaultContext(context: {}) {
-    this.locker.set('context', context);
+    sessionStorage.setItem('context', context.toString());
     this.loadAllFromStorage();
   }
 
@@ -83,12 +72,12 @@ export class SessionService {
       this.trytonService.setServerUrl('https://' + this.trytonService.serverUrl);
       loginObservable = this._tryLogin(database, username, password)
       .retryWhen(errors => {
-         return errors.do(function(e) {
+        return errors.do(function(e) {
           let serverUrl = this.trytonService.serverUrl;
           if (serverUrl.startsWith('https')) {
-            this.trytonService.setServerUrl(serverUrl.replace(/^https/i, 'http'));
+              this.trytonService.setServerUrl(serverUrl.replace(/^https/i, 'http'));
           } else {
-            throw e;
+              throw e;
           }
         });
       });
@@ -106,21 +95,18 @@ export class SessionService {
   }
 
   private _tryLogin(database: string, username: string, password: string) {
-    // call login on tryton server and if the login is succesful set the
-    // userId and session
     var parameters = {'password': password};
-    return this.trytonService.rpc(
-          database, 'common.db.login', [username, parameters])
+    return this.trytonService.rpc(database, 'common.db.login', [username, parameters])
       .map(response => {
         if (response && response instanceof Array && response.length == 2) {
+          console.log(response);
           return {
-              'userId': String(response[0]),
-              'sessionId': String(response[1]),
+            'userId': String(response[0]),
+            'sessionId': String(response[1]),
           }
         } else {
-          console.log('Returned data by common.db.login:', response);
           return Observable.throw(
-              'Unexpected returned data for common.login method');
+            'Unexpected returned data for common.login method');
         }
       })
       .do(result => {
@@ -129,12 +115,16 @@ export class SessionService {
   }
 
   doLogout() {
-    let observable = this.rpc('common.db.logout', null, null);
+    let observable = this.trytonService.rpc('common.db.logout', null, null);
     this.clearSession();
     return observable;
   }
 
   isLoggedIn() {
     return !!this.sessionId;
+  }
+
+  isLoggedInPermissions() {
+    return this.userId;
   }
 }
