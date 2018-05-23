@@ -57,7 +57,7 @@ export class SessionService {
       ...params || [],
       new_context
     ];
-    return this.trytonService.rpc(this.database, method, new_params);
+    return this.trytonService.rpc(sessionStorage.getItem('database'), method, new_params);
   }
 
   doLogin(database: string, username: string, password: string, getPreferences: boolean = false): Observable<{ userId: string, sessionId: string }> {
