@@ -1,9 +1,10 @@
-import {Injectable, Inject} from '@angular/core';
-import {Http, Headers} from '@angular/http';
+import { Injectable, Inject } from '@angular/core';
+import { Http, Headers } from '@angular/http';
 import { DOCUMENT } from '@angular/platform-browser'
 import {Observable} from 'rxjs/Observable';
+import { environment } from '../../../environments/environment';
 import 'rxjs/Rx';
-import {Locker} from 'angular-safeguard'
+
 
 @Injectable()
 export class TrytonService {
@@ -11,34 +12,33 @@ export class TrytonService {
   database: string;
   login: string;
   userId: number;
-  sessionId: number;
+  sessionId: string;
 
-  constructor(private http: Http, private locker: Locker,
-    @Inject(DOCUMENT) private document: any) {
-    // When use it you can choose where to save data (local, session...)
-    // see https://github.com/MikaAK/angular2-locker
-    this.serverUrl = locker.get('serverUrl');
+  constructor(private http: Http, @Inject(DOCUMENT) private document: any,) {
+    this.serverUrl = sessionStorage.getItem('serverUrl');
     if (!this.serverUrl) {
-      this.setServerUrl(this.document.location.href);
+      this.setServerUrl(environment.url_server);
     }
   }
 
+  // TODO: trytonResponseInterceptor
+
   loadAllFromStorage() {
-    this.database = this.locker.get('database');
-    this.login = this.locker.get('login');
-    this.userId = this.locker.get('userId');
-    this.sessionId = this.locker.get('sessionId');
+    this.database = sessionStorage.getItem('database');
+    this.login = sessionStorage.getItem('login');
+    this.userId = Number(sessionStorage.getItem('userId'));
+    this.sessionId = sessionStorage.getItem('sessionId');
+    // this.context = sessionStorage.getItem('context');
   }
+
+  setServerUrl(url) {
+    this.serverUrl = url + (url.slice(-1) === '/' ? '' : '/');
+    sessionStorage.setItem('serverUrl', this.serverUrl);
+  }
+
   get_auth() {
     this.loadAllFromStorage();
     return btoa(this.login + ':' + this.userId + ':' + this.sessionId);
-  }
-  setServerUrl(url) {
-    this.serverUrl = url + (url.slice(-1) === '/' ? '' : '/');
-    let array = this.serverUrl.split('/')
-    array.splice(3, 1)
-    this.serverUrl = array.join('/')
-    this.locker.set('serverUrl', this.serverUrl);
   }
 
   rpc(database: string, method: string, params: Array<any>): Observable<any> {
@@ -58,7 +58,6 @@ export class TrytonService {
       })
       .map(res => {
         let new_res = res.json();
-        console.log("new_res:", new_res);
         if (!new_res) {
           return Observable.throw('Empty response');
         } else if (new_res['result']) {
@@ -72,7 +71,7 @@ export class TrytonService {
   }
 
   private _handleError(error) {
-    console.error(error);
+    // console.error(error);
     return Observable.throw(error || 'Server error');
   }
 
@@ -119,9 +118,5 @@ export class TrytonService {
     }
     // TODO: raise an error that could be showed to user
     throw tryton_error;
-  }
-
-  getServerVersion(): Observable<{}> {
-    return this.rpc(null, 'common.db.version', [null, null]);
   }
 };
