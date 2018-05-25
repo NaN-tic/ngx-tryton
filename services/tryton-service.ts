@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@angular/core';
 import { Http, Headers } from '@angular/http';
 import { DOCUMENT } from '@angular/platform-browser'
-import {Observable} from 'rxjs/Observable';
+import { Observable } from 'rxjs/Observable';
 import { environment } from '../../../environments/environment';
 import 'rxjs/Rx';
 
@@ -13,8 +13,10 @@ export class TrytonService {
   login: string;
   userId: number;
   sessionId: string;
+  context: string;
 
-  constructor(private http: Http, @Inject(DOCUMENT) private document: any,) {
+  constructor(private http: Http,
+              @Inject(DOCUMENT) private document: any) {
     this.serverUrl = sessionStorage.getItem('serverUrl');
     if (!this.serverUrl) {
       this.setServerUrl(environment.url_server);
@@ -28,7 +30,7 @@ export class TrytonService {
     this.login = sessionStorage.getItem('login');
     this.userId = Number(sessionStorage.getItem('userId'));
     this.sessionId = sessionStorage.getItem('sessionId');
-    // this.context = sessionStorage.getItem('context');
+    this.context = sessionStorage.getItem('context');
   }
 
   setServerUrl(url) {
@@ -41,33 +43,42 @@ export class TrytonService {
     return btoa(this.login + ':' + this.userId + ':' + this.sessionId);
   }
 
-  rpc(database: string, method: string, params: Array<any>): Observable<any> {
+  rpc(database: string, method: string, params: Array<any>, context: {} = null): Observable<any> {
     // Original tryton service rpc()
     // var _params = Fulfil.transformRequest(params);
-    let _params = params;
     let headers = new Headers()
     headers.append('Content-Type', 'application/json')
     headers.append('Authorization','Session ' + this.get_auth());
+
+    // copy object in a new imuptable object
+    // const context = context ? context : JSON.parse(this.context);
+    const new_context = Object.assign({}, context ? context : JSON.parse(this.context));
+    // Concat list in a new immutable list
+    const new_params = [...params || [], new_context];
+
+    let options = {
+      'method': method,
+      'params': new_params,
+    }
+    if (method === 'common.db.logout') {
+      options['id'] = 0;
+      options['params'] = [];
+    }
+
     return this.http.post(
-      this.serverUrl + (database || '') + '/',
-      JSON.stringify({
-        'method': method,
-        'params': _params || [],
-      }),{
-          headers: headers
-      })
-      .map(res => {
-        let new_res = res.json();
-        if (!new_res) {
-          return Observable.throw('Empty response');
-        } else if (new_res['result']) {
-          return new_res['result'];  // TODO: Fulfil.transformResponse
-        } else if (new_res['error']) {
-          return this._handleTrytonError(new_res['error']);
-        }
-        return new_res;
-      })
-      .catch(this._handleError);
+      this.serverUrl + (database || '') + '/', JSON.stringify(options), {headers: headers})
+        .map(res => {
+          let new_res = res.json();
+          if (!new_res) {
+            return Observable.throw('Empty response');
+          } else if (new_res['result']) {
+            return new_res['result'];  // TODO: Fulfil.transformResponse
+          } else if (new_res['error']) {
+            return this._handleTrytonError(new_res['error']);
+          }
+          return new_res;
+        })
+        .catch(this._handleError);
   }
 
   private _handleError(error) {

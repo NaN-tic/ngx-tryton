@@ -44,20 +44,12 @@ export class SessionService {
   }
 
   setDefaultContext(context: {}) {
-    sessionStorage.setItem('context', context.toString());
+    sessionStorage.setItem('context', JSON.stringify(context));
     this.loadAllFromStorage();
   }
 
   rpc(method: string, params: Array<any>, context: {} = null): Observable<any> {
-    // original scope rpc()
-    // copy object in a new imuptable object
-    const new_context = Object.assign({}, this.context || {}, context || {})
-    // Concat list in a new immutable list
-    const new_params = [
-      ...params || [],
-      new_context
-    ];
-    return this.trytonService.rpc(sessionStorage.getItem('database'), method, new_params);
+    return this.trytonService.rpc(sessionStorage.getItem('database'), method, params, context);
   }
 
   doLogin(database: string, username: string, password: string, getPreferences: boolean = false): Observable<{ userId: string, sessionId: string }> {
@@ -86,7 +78,7 @@ export class SessionService {
     return loginObservable.do(result => {
       // Get the user preferences if user has asked for it.
       if (getPreferences) {
-        this.rpc('model.res.user.get_preferences', [true], null)
+        this.rpc('model.res.user.get_preferences', [true], {})
           .subscribe(preferences => {
             this.setDefaultContext(preferences);
           });
@@ -96,10 +88,10 @@ export class SessionService {
 
   private _tryLogin(database: string, username: string, password: string) {
     var parameters = {'password': password};
-    return this.trytonService.rpc(database, 'common.db.login', [username, parameters])
+    return this.trytonService.rpc(database, 'common.db.login', [username, parameters], {})
       .map(response => {
         if (response && response instanceof Array && response.length == 2) {
-          console.log(response);
+          // console.log(response);
           return {
             'userId': String(response[0]),
             'sessionId': String(response[1]),
@@ -115,9 +107,7 @@ export class SessionService {
   }
 
   doLogout() {
-    let observable = this.trytonService.rpc('common.db.logout', null, null);
-    this.clearSession();
-    return observable;
+    return this.rpc('common.db.logout', [], {});
   }
 
   isLoggedIn() {
