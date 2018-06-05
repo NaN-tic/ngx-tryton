@@ -119,10 +119,12 @@ export class SessionService {
   }
 
   isLoggedIn() {
+    this.loadAllFromStorage();
     return !!this.sessionId;
   }
 
   isLoggedInPermissions() {
+    this.loadAllFromStorage();
     return this.userId;
   }
 }
