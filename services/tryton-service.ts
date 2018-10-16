@@ -54,7 +54,8 @@ export class TrytonService {
     // const context = context ? context : JSON.parse(this.context);
     const new_context = Object.assign({}, context ? context : JSON.parse(this.context));
     // Concat list in a new immutable list
-    const new_params = [...params || [], new_context];
+    // const new_params = [...params || [], new_context];
+    const new_params = [...params || []];
 
     let options = {
       'method': method,

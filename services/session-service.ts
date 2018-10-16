@@ -49,7 +49,15 @@ export class SessionService {
   }
 
   rpc(method: string, params: Array<any>, context: {} = null): Observable<any> {
-    return this.trytonService.rpc(sessionStorage.getItem('database'), method, params, context);
+    // original scope rpc()
+    // copy object in a new imuptable object
+    const new_context = Object.assign({}, this.context || {}, context || {})
+    // Concat list in a new immutable list
+    const new_params = [
+      ...params || [],
+      new_context
+    ];
+    return this.trytonService.rpc(sessionStorage.getItem('database'), method, new_params);
   }
 
   doLogin(database: string, username: string, password: string, getPreferences: boolean = false): Observable<{ userId: string, sessionId: string }> {
@@ -87,8 +95,7 @@ export class SessionService {
   }
 
   private _tryLogin(database: string, username: string, password: string) {
-    var parameters = {'password': password};
-    return this.trytonService.rpc(database, 'common.db.login', [username, parameters], {})
+    return this.trytonService.rpc(database, 'common.db.login', [username, password])
       .map(response => {
         if (response && response instanceof Array && response.length == 2) {
           // console.log(response);
