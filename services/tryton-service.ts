@@ -19,7 +19,7 @@ export class TrytonService {
               @Inject(DOCUMENT) private document: any) {
     this.serverUrl = sessionStorage.getItem('serverUrl');
     if (!this.serverUrl) {
-      this.setServerUrl(environment.url_server);
+      this.setServerUrl(window.location.origin);
     }
   }
 
