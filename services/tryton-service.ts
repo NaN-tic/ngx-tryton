@@ -3,8 +3,7 @@ import { Http, Headers } from '@angular/http';
 import { DOCUMENT } from '@angular/platform-browser'
 import { Observable } from 'rxjs/Observable';
 import { environment } from '../../../environments/environment';
-import 'rxjs/Rx';
-
+import { throwError } from 'rxjs';
 
 @Injectable()
 export class TrytonService {
@@ -81,9 +80,9 @@ export class TrytonService {
         .catch(this._handleError);
   }
 
-  private _handleError(error) {
-    // console.error(error);
-    return Observable.throw(error || 'Server error');
+  private _handleError(error: Response | any) {
+    // console.error(error._body || 'Server error');
+    return throwError(error._body || 'Server error');
   }
 
   _handleTrytonError(error) {
